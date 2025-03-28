@@ -32,7 +32,10 @@ This server is ideal for applications like [Silly Tavern](https://sillytavern.ap
     ```bash
     pip install fastapi uvicorn numpy
     ```
-
+    *Alternatively, if you create a `requirements.txt` file:*
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## Running the Server
 
@@ -41,3 +44,78 @@ You can run the server using Uvicorn. Specify the host and port directly on the 
 ```bash
 # Example using port 8081, accessible on your local network
 uvicorn morse_tts_server:app --host 0.0.0.0 --port 8081
+```
+
+* `--host 0.0.0.0`: Listen on all available network interfaces. Use `127.0.0.1` to only allow connections from the same machine.
+* `--port 8081`: Specify the port number you want the server to run on. Choose any available port (e.g., 8000, 5000, etc.).
+
+Add `--reload` for automatic reloading during development:
+
+```bash
+# Example adding the --reload flag
+uvicorn morse_tts_server:app --host 0.0.0.0 --port 8081 --reload
+```
+
+**Note:** The `uvicorn.run(...)` call inside the `if __name__ == "__main__":` block in `morse_tts_server.py` is *ignored* when you run the server using the `uvicorn module:app` command format. Use command-line arguments as shown above.
+
+## Client Configuration (Example: Silly Tavern)
+
+1.  Go to TTS Settings in Silly Tavern.
+2.  Select **OpenAI** as the provider.
+3.  Set the **API Endpoint URL**: `http://<server_ip>:<port>/v1/audio/speech`
+    * If running on the same machine: `http://127.0.0.1:8081/v1/audio/speech` (use the port you chose).
+    * If running on another machine on your network: `http://<server's_local_ip>:8081/v1/audio/speech`.
+4.  Leave the **API Key** field blank.
+5.  Select a **Voice**: Choose a name defined in the `VOICE_WPM_MAP` within the script (e.g., "echo", "fable", "onyx", "slowpoke") to get that specific WPM speed.
+6.  **Speed Slider**: This slider only takes effect if the selected **Voice** is *not* found in the `VOICE_WPM_MAP` in the script.
+
+## Customization
+
+You can easily customize the server's behavior by editing `morse_tts_server.py`:
+
+* **`VOICE_WPM_MAP`**: Modify this dictionary to add, remove, or change the mapping between voice names (lowercase) and desired WPM speeds.
+    ```python
+    # Example inside morse_tts_server.py
+    VOICE_WPM_MAP = {
+        "echo":    20,
+        "fable":   25,
+        # Add your own
+        "custom_slow": 10,
+    }
+    ```
+* **`BASE_WPM`**: Change the default WPM used when a voice is not mapped.
+* **`FREQUENCY`**: Change the pitch of the Morse code tone (in Hz).
+* **`AMPLITUDE`**: Adjust the volume of the generated audio (0.0 to 1.0).
+* **`MORSE_CODE_DICT`**: Add or modify character-to-Morse mappings if needed.
+
+## API Endpoint
+
+### `POST /v1/audio/speech`
+
+* **Request Body (JSON):**
+    * `input` (string, required): The text to convert.
+    * `voice` (string, optional, default: "echo"): Selects a WPM preset from `VOICE_WPM_MAP`.
+    * `speed` (float, optional, default: 1.0): Speed multiplier applied to `BASE_WPM` *only if* `voice` is not found in `VOICE_WPM_MAP`. Range: 0.25 to 4.0.
+    * `model` (string, optional): Ignored by this server.
+    * `response_format` (string, optional): Ignored, always returns `audio/wav`.
+* **Response:**
+    * `200 OK`: Returns binary WAV audio data with `Content-Type: audio/wav`.
+    * `400 Bad Request`: If audio generation fails (e.g., empty input).
+    * `500 Internal Server Error`: If an unexpected error occurs.
+
+## Limitations
+
+* **WAV Only:** The server currently only outputs WAV audio, regardless of the requested `response_format`.
+* **Basic Tone:** Audio generation uses a simple sine wave. It does not include advanced audio filtering or shaping found in libraries like `jscwlib`.
+* **Simplified Timing:** Primarily based on WPM using the PARIS standard. Does not implement Farnsworth timing (`eff` speed) or explicit extra word spacing (`ews`) control via API parameters.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Acknowledgements
+
+* Morse code timing logic based on the PARIS standard.
+* API structure designed for compatibility with OpenAI TTS clients.
+
+```
